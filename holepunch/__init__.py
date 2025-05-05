@@ -21,7 +21,11 @@ Options:
   -t --tcp               Open TCP ports to ingress [default].
   -u --udp               Open UDP ports to ingress.
   -y --yes               Don't prompt before writing rules.
+  -x --exit              Exit after applying ingress rules.
+  -v MODE                Verbose mode. Causes holepunch to print debugging messages about its progress.
+                         The maximum is 2. [default: 2]
 '''
+
 
 import atexit
 from difflib import SequenceMatcher
@@ -36,6 +40,15 @@ import boto3
 from docopt import docopt
 
 from holepunch.version import __version__
+
+
+verbosity = 2
+
+
+def log(msg, level=2, **kwargs):
+    """Print a message if verbosity higher then 0"""
+    if level <= verbosity:
+        print(msg, **kwargs)
 
 
 def find_intended_security_group(security_groups, group_name):
@@ -88,6 +101,7 @@ def parse_port_ranges(port_strings):
     '''
 
     ranges = []
+    p1 = p2 = -1
 
     for s in port_strings:
         split = list(map(int, s.split('-')))
@@ -114,18 +128,21 @@ def parse_port_ranges(port_strings):
 
 
 def apply_ingress_rules(ec2_client, group, ip_permissions):
-    print('Applying rules... ', end='')
+    log('Applying rules to: {group_name} [{group_id}] ... '.format(
+        group_name=group['GroupName'],
+        group_id=group['GroupId']
+    ), level=1, end='')
 
     ec2_client.authorize_security_group_ingress(**{
         'GroupId': group['GroupId'],
         'IpPermissions': ip_permissions
     })
 
-    print('Done')
+    log('Done', level=1)
 
 
 def revert_ingress_rules(boto_args, group, ip_permissions):
-    print('Reverting rules... ', end='')
+    log('Reverting rules... ', level=1, end='')
 
     # Create a new boto session instead of reusing existing one, which
     # may have expired while we were asleep.
@@ -137,7 +154,7 @@ def revert_ingress_rules(boto_args, group, ip_permissions):
         'IpPermissions': ip_permissions,
     })
 
-    print('Done')
+    log('Done', level=1)
 
 
 def confirm(message):
@@ -203,7 +220,7 @@ def build_ingress_permissions(security_group, cidr, port_ranges, protocols, desc
 
                 if any(ip[cidr_key] == cidr_str for ip in ip_ranges):
                     existing_perms.append(permission)
-                    print('Not adding existing permission: %s' % json.dumps(permission))
+                    log('Not adding existing permission: %s' % json.dumps(permission))
                     break
             else:
                 new_perms.append(permission)
@@ -288,8 +305,8 @@ def holepunch(args):
         print('No changes to make.')
         return True
 
-    print('Changes to be made to: {group_name} [{group_id}]'
-          '\n{hr}\n{perms}\n{hr}'.format(
+    log('Changes to be made to: {group_name} [{group_id}]'
+        '\n{hr}\n{perms}\n{hr}'.format(
               hr='='*60, group_name=group['GroupName'],
               group_id=group['GroupId'],
               perms=json.dumps(new_perms, indent=4)))
@@ -307,7 +324,10 @@ def holepunch(args):
     # Make sure we have a chance to clean up the security group
     # rules gracefully by ignoring common signals.
     def signal_handler(sig_num, proc):
-        print(f"\nSignal received: {sig_num}")
+        # print(f"\nSignal received: {sig_num}")
+        # convert sig_num to text representation
+        sig_name = signal.Signals(sig_num).name
+        print(f"\nTerminate signal ({sig_name}) received.")
 
         # Received a signal while subprocess was still running, terminate.
         if proc.poll() is None:
@@ -319,8 +339,12 @@ def holepunch(args):
     command = args['--command'] or 'cat'
     if args['--command'] is not None:
         print(f'Rules will revert when `{command}` terminates.')
+    elif args['--exit']:
+        print('Rules are applied and will not be removed after the program exists.')
+        print('Run with -r (--remove-existing) to remove existing rules.')
+        return True
     else:
-        print('^D to revert')
+        print('Ctrl+C to revert')
 
     proc = subprocess.Popen(command, shell=True)
 
@@ -332,7 +356,11 @@ def holepunch(args):
 
 
 def main():
+    global verbosity
+
     args = docopt(__doc__, version=__version__)
+    verbosity = int(args['-v'])
+
     success = holepunch(args)
 
     if not success:

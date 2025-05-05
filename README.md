@@ -25,8 +25,7 @@ protocol and description must all match or the rule will not be removed.
 pip install holepunch
 ```
 
-AWS credentials can be set up in any of the places that [Boto3 knows
-to
+AWS credentials can be set up in any of the places that [Boto3 knows to 
 look.](http://boto3.readthedocs.io/en/latest/guide/configuration.html)
 
 ## Examples
@@ -64,4 +63,20 @@ holepunch foo_bar --cidr=192.168.0.0/16 22 80
 
 # Also works with IPv6 ranges
 holepunch foo_bar --cidr=2001:882f::1/128 443
+```
+
+Less verbose or quiet mode:
+
+```
+# Verbose mode
+holepunch foo_bar -v2 --cidr=192.168.0.0/16 22 80
+
+# Quiet mode
+holepunch foo_bar -v0 --cidr=2001:882f::1/128 443
+```
+
+## Local testing
+
+```
+pip install -e .
 ```

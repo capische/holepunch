@@ -11,11 +11,14 @@ jobs:
         # Currently supported Python versions:
         # https://devguide.python.org/#status-of-python-branches
         python-version:
-          - '3.6'   # EOL: 2021-12-23
-          - '3.7'   # EOL: 2023-06-27
-          - '3.8'   # EOL: 2024-10
+          #- '3.6'   # EOL: 2021-12-23
+          #- '3.7'   # EOL: 2023-06-27
+          #- '3.8'   # EOL: 2024-10
           - '3.9'   # EOL: 2025-10
           - '3.10'  # EOL: 2026-10
+          - '3.11'
+          - '3.12'
+          - '3.13'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1

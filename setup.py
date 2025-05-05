@@ -20,7 +20,7 @@ setup(
     },
     license='MIT',
     install_requires=[
-        'boto3==1.20.2',
+        'boto3==1.38.8',
         'docopt==0.6.2',
     ],
     classifiers=[
